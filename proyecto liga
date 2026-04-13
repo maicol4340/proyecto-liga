@@ -1,0 +1,227 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+
+using namespace std;
+
+struct Equipo {
+    string nombre;
+    int pj = 0, pg = 0, pe = 0, pp = 0;
+    int gf = 0, gc = 0, pts = 0;
+};
+
+struct Partido {
+    string fecha;
+    string local;
+    string visitante;
+    int gl;
+    int gv;
+};
+
+vector<string> equipos;
+int puntosGanar = 3, puntosEmpatar = 1, puntosPerder = 0;
+
+// leer config (más simple)
+void leerConfig() {
+    ifstream file("data/config.txt");
+    string tipo, valor;
+
+    if (!file) {
+        cout << "Error leyendo config\n";
+        return;
+    }
+
+    while (file >> tipo >> valor) {
+        if (tipo == "equipo") equipos.push_back(valor);
+        if (tipo == "victoria") puntosGanar = stoi(valor);
+        if (tipo == "empate") puntosEmpatar = stoi(valor);
+        if (tipo == "derrota") puntosPerder = stoi(valor);
+    }
+
+    file.close();
+}
+
+// validar equipo
+bool existe(string nombre) {
+    for (int i = 0; i < equipos.size(); i++) {
+        if (equipos[i] == nombre) return true;
+    }
+    return false;
+}
+
+// guardar partido
+void guardarPartido(Partido p) {
+    ofstream file("data/partidos.txt", ios::app);
+
+    file << p.fecha << " "
+         << p.local << " "
+         << p.visitante << " "
+         << p.gl << " "
+         << p.gv << "\n";
+
+    file.close();
+}
+
+// leer partidos (más básico)
+vector<Partido> leerPartidos() {
+    vector<Partido> lista;
+    ifstream file("data/partidos.txt");
+
+    Partido p;
+
+    while (file >> p.fecha >> p.local >> p.visitante >> p.gl >> p.gv) {
+        lista.push_back(p);
+    }
+
+    file.close();
+    return lista;
+}
+
+// hacer tabla (más directo)
+vector<Equipo> hacerTabla(vector<Partido> partidos) {
+
+    vector<Equipo> tabla;
+
+    for (int i = 0; i < equipos.size(); i++) {
+        Equipo e;
+        e.nombre = equipos[i];
+        tabla.push_back(e);
+    }
+
+    for (int i = 0; i < partidos.size(); i++) {
+        for (int j = 0; j < tabla.size(); j++) {
+
+            if (tabla[j].nombre == partidos[i].local) {
+                tabla[j].pj++;
+                tabla[j].gf += partidos[i].gl;
+                tabla[j].gc += partidos[i].gv;
+
+                if (partidos[i].gl > partidos[i].gv) {
+                    tabla[j].pg++;
+                    tabla[j].pts += puntosGanar;
+                } else if (partidos[i].gl == partidos[i].gv) {
+                    tabla[j].pe++;
+                    tabla[j].pts += puntosEmpatar;
+                } else {
+                    tabla[j].pp++;
+                    tabla[j].pts += puntosPerder;
+                }
+            }
+
+            if (tabla[j].nombre == partidos[i].visitante) {
+                tabla[j].pj++;
+                tabla[j].gf += partidos[i].gv;
+                tabla[j].gc += partidos[i].gl;
+
+                if (partidos[i].gv > partidos[i].gl) {
+                    tabla[j].pg++;
+                    tabla[j].pts += puntosGanar;
+                } else if (partidos[i].gv == partidos[i].gl) {
+                    tabla[j].pe++;
+                    tabla[j].pts += puntosEmpatar;
+                } else {
+                    tabla[j].pp++;
+                    tabla[j].pts += puntosPerder;
+                }
+            }
+        }
+    }
+
+    return tabla;
+}
+
+// ordenar (simple)
+void ordenar(vector<Equipo> &t) {
+    for (int i = 0; i < t.size(); i++) {
+        for (int j = 0; j < t.size() - 1; j++) {
+            if (t[j].pts < t[j + 1].pts) {
+                swap(t[j], t[j + 1]);
+            }
+        }
+    }
+}
+
+// mostrar tabla
+void mostrar(vector<Equipo> t) {
+    cout << "\nTabla:\n";
+
+    for (int i = 0; i < t.size(); i++) {
+        cout << t[i].nombre << " "
+             << t[i].pts << " pts\n";
+    }
+}
+
+// menu
+int menu() {
+    int op;
+    cout << "\n1. Ver tabla\n";
+    cout << "2. Registrar partido\n";
+    cout << "3. Ver partidos\n";
+    cout << "4. Salir\n";
+    cout << "Opcion: ";
+    cin >> op;
+    return op;
+}
+
+// ver partidos
+void verPartidos() {
+    vector<Partido> p = leerPartidos();
+
+    for (int i = 0; i < p.size(); i++) {
+        cout << p[i].fecha << " "
+             << p[i].local << " "
+             << p[i].gl << " - "
+             << p[i].gv << " "
+             << p[i].visitante << "\n";
+    }
+}
+
+int main() {
+
+    leerConfig();
+
+    int op;
+
+    do {
+        op = menu();
+
+        if (op == 1) {
+            vector<Equipo> t = hacerTabla(leerPartidos());
+            ordenar(t);
+            mostrar(t);
+        }
+
+        else if (op == 2) {
+            Partido p;
+
+            cout << "Fecha: ";
+            cin >> p.fecha;
+
+            cout << "Local: ";
+            cin >> p.local;
+
+            cout << "Visitante: ";
+            cin >> p.visitante;
+
+            if (!existe(p.local) || !existe(p.visitante)) {
+                cout << "Equipo no valido\n";
+                continue;
+            }
+
+            cout << "Goles local: ";
+            cin >> p.gl;
+
+            cout << "Goles visitante: ";
+            cin >> p.gv;
+
+            guardarPartido(p);
+        }
+
+        else if (op == 3) {
+            verPartidos();
+        }
+
+    } while (op != 4);
+
+    return 0;
+}
